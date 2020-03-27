@@ -202,5 +202,7 @@ if __name__ == '__main__':
 
     print('Entries for /etc/hosts:')
     print(manager.hostsfile)
+    with open('hosts_content', 'w') as f:
+        f.write(manager.hostsfile)
 
     print('If there were any errors, re-run te script before setting up the sync, or it will fail.')

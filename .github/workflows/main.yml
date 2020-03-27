@@ -47,6 +47,9 @@ jobs:
         sleep 200
         ps aux
         poetry run ./init_misps.py
+        poetry run ./stop_misps.py
+        sleep 20
+        poetry run ./init_misps.py
 
     - name: Setup nginx, after MISPs (so the internal network exists)
       run: poetry run ./setup_nginx.py
@@ -54,6 +57,8 @@ jobs:
     - name: Start nginx
       run: |
           cd nginx-proxy
+          sudo docker-compose up &
+          sleep 20
           sudo docker-compose up &
           cd ..
           sleep 30

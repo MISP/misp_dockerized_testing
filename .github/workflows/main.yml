@@ -52,11 +52,14 @@ jobs:
       run: poetry run ./setup_nginx.py
 
     - name: Start nginx
-      run: poetry run ./start_nginx.py
+      run: |
+          cd nginx-proxy
+          sudo docker-compose up &
+          cd ..
+          sleep 30
 
     - name: Test if the domains are reachable
       run: |
-        sleep 20
         curl --verbose --header 'Host: misp-central.local' 'http://127.0.0.1/users/login'
         curl --verbose --header 'Host: misp-1.local' 'http://127.0.0.1/users/login'
         curl --verbose --header 'Host: misp-2.local' 'http://127.0.0.1/users/login'

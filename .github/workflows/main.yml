@@ -42,7 +42,9 @@ jobs:
         poetry run ./start_nginx.py
 
     - name: Update hosts file
-      run: cat hosts_content | sudo tee -a /etc/hosts
+      run: |
+       cat hosts_content | sudo tee -a /etc/hosts
+       cat /etc/hosts
 
     - name: Run tests
       run: poetry run nosetests-3.4 testlive_sync.py

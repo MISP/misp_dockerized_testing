@@ -36,10 +36,6 @@ jobs:
     - name: Initialize MISPs
       run:  poetry run ./init_misps.py
 
-    - name: Run nginx, after MISPs (so the internal network exists)
-      run: |
-        poetry run ./setup_nginx.py
-        poetry run ./start_nginx.py
 
     - name: Update hosts file
       run: |
@@ -54,6 +50,19 @@ jobs:
         sleep 100
         ps aux
         poetry run ./init_misps.py
+
+    - name: Run nginx, after MISPs (so the internal network exists)
+      run: |
+        poetry run ./setup_nginx.py
+        poetry run ./start_nginx.py
+        sleep 20
+            
+    - name: Test if the domains are reachable
+      run: |
+        curl --verbose --header 'Host: misp-central.local' 'http://127.0.0.1/users/login'
+        curl --verbose --header 'Host: misp-1.local' 'http://127.0.0.1/users/login'
+        curl --verbose --header 'Host: misp-2.local' 'http://127.0.0.1/users/login'
+        curl --verbose --header 'Host: misp-3.local' 'http://127.0.0.1/users/login'
 
     - name: Run tests
       run: poetry run nosetests-3.4 testlive_sync.py

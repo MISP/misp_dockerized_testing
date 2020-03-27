@@ -23,26 +23,26 @@ jobs:
     - uses: actions/checkout@v2
       with:
         submodules: 'recursive'
-    
+
     - uses: actions/setup-python@v1
-      with: 
+      with:
         python-version: '3.7'
-      
+
     - name: Setup poetry
-      run: | 
+      run: |
         pip3 install poetry
         poetry install
 
-    - name: Initialize nginx
+    - name: Initialize MISPs
+      run:  poetry run ./init_misps.py
+
+    - name: Run nginx, after MISPs (so the internal network exists)
       run: |
         poetry run ./setup_nginx.py
         poetry run ./start_nginx.py
 
-    - name: Initialize MISPs
-      run:  poetry run ./init_misps.py
-    
     - name: Update hosts file
       run: cat hosts_content | sudo tee -a /etc/hosts
-    
+
     - name: Run tests
       run: poetry run nosetests-3.4 testlive_sync.py

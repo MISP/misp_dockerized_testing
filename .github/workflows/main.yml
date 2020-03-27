@@ -54,9 +54,6 @@ jobs:
         sleep 200
         ps aux
         poetry run ./init_misps.py
-        sleep 20
-        poetry run ./stop_misps.py
-        poetry run ./init_misps.py
 
     - name: Start nginx
       run: |

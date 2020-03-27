@@ -47,7 +47,7 @@ jobs:
        cat /etc/hosts
 
     - name: Initialize MISPs, take 2
-      run:|
+      run: |
         ps aux
         sleep 100
         ps aux

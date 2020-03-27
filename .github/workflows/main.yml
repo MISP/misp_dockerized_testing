@@ -55,6 +55,7 @@ jobs:
 
     - name: Test if the domains are reachable
       run: |
+        curl --verbose --header 'Host: whoami.local' 'http://127.0.0.1/'
         curl --verbose --header 'Host: misp-central.local' 'http://127.0.0.1/users/login'
         curl --verbose --header 'Host: misp-1.local' 'http://127.0.0.1/users/login'
         curl --verbose --header 'Host: misp-2.local' 'http://127.0.0.1/users/login'

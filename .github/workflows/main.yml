@@ -25,6 +25,9 @@ jobs:
       with: 
         python-version: '3.7'
     
+    - name: Checkout submodules
+      uses: textbook/git-checkout-submodule-action@master
+      
     - name: Setup poetry
       run: | 
         pip3 install poetry

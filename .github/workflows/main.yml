@@ -53,6 +53,12 @@ jobs:
         ps aux
         poetry run ./init_misps.py
 
+    - name: Restart nginx, just in case
+      run: |
+        poetry run ./stop_nginx.py
+        poetry run ./start_nginx.py
+        sleep 60
+
     - name: Test if the domains are reachable
       run: |
         curl --verbose --header 'Host: whoami.local' 'http://127.0.0.1/'

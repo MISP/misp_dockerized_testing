@@ -6,10 +6,10 @@ Test MISP instances using a dockerized infrastructure
 ```bash
 poetry install
 
-./setup_nginx.py
-./start_nginx.py
 ./init_misps.py
 # Get the list printed at the end, add it in your /etc/hosts file
+./setup_nginx.py
+./start_nginx.py
 nosetests-3.4 testlive_sync.py
 ```
 

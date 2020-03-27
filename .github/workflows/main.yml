@@ -42,23 +42,27 @@ jobs:
        cat hosts_content | sudo tee -a /etc/hosts
        cat /etc/hosts
 
+    - name: Setup nginx, after MISPs (so the internal network exists)
+      run: |
+        poetry run ./setup_nginx.py
+        cd nginx-proxy
+        sudo docker-compose up &
+        cd ..
+
     - name: Initialize MISPs, take 2 (few scripts need to run before the interface is usable)
       run: |
         sleep 200
         ps aux
         poetry run ./init_misps.py
-        poetry run ./stop_misps.py
         sleep 20
+        poetry run ./stop_misps.py
         poetry run ./init_misps.py
-
-    - name: Setup nginx, after MISPs (so the internal network exists)
-      run: poetry run ./setup_nginx.py
 
     - name: Start nginx
       run: |
-          cd nginx-proxy
-          sudo docker-compose up &
+          poetry run ./stop_nginx.py
           sleep 20
+          cd nginx-proxy
           sudo docker-compose up &
           cd ..
           sleep 30

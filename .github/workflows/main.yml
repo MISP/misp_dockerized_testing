@@ -24,7 +24,7 @@ jobs:
     
     - name: Setup poetry
       run: | 
-        sudo pip install poetry
+        sudo pip3 install poetry
         poetry install
 
     - name: Initialize nginx

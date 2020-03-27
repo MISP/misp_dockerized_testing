@@ -32,14 +32,14 @@ jobs:
 
     - name: Initialize nginx
       run: |
-        poetry run setup_nginx.py
-        poetry run start_nginx.py
+        poetry run ./setup_nginx.py
+        poetry run ./start_nginx.py
 
     - name: Initialize MISPs
-      run:  poetry run init_misps.py
+      run:  poetry run ./init_misps.py
     
     - name: Update hosts file
       run: cat hosts_content | sudo tee -a /etc/hosts
     
     - name: Run tests
-      run: poetry nosetests-3.4 testlive_sync.py
+      run: poetry run nosetests-3.4 testlive_sync.py

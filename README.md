@@ -1,9 +1,19 @@
 # misp_dockerized_testing
 Test MISP instances using a dockerized infrastructure
 
-# What does what
+# Usage
 
-* `start_dockers.py`: Configure and launch the `docker-compose.yml` files
-* `start_dockers.py`: Guess.
-* `refresh_dockers.py`: Run the refresh script on all the MISP instances
-* `run_tests.sh`: Run the test suite (if that fails, you want to run `refresh_dockers.py`)
+```bash
+poetry install
+
+./setup_nginx.py
+./start_nginx.py
+./init_misps.py
+# Get the list printed at the end, add it in your /etc/hosts file
+nosetests-3.4 testlive_sync.py
+```
+
+# Notes
+
+`./stop_*` stops thigns
+`./refresh_misps.py` cleans up the MISPs instances

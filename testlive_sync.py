@@ -7,135 +7,12 @@ import unittest
 import urllib3  # type: ignore
 import logging
 
-from config import docker_setup
+from pymisp import MISPEvent, MISPObject, MISPSharingGroup, Distribution
 
-from pymisp import ExpandedPyMISP, MISPOrganisation, MISPUser, MISPEvent, MISPObject, MISPSharingGroup, Distribution
+from .setup_sync import MISPInstances
 
 logging.disable(logging.CRITICAL)
 urllib3.disable_warnings()
-
-# Assumes the VMs are already started, doesn't shut them down
-fast_mode = True
-
-
-class MISPInstance():
-
-    def __init__(self, params):
-        self.initial_user_connector = ExpandedPyMISP(params['baseurl'], params['admin_key'], ssl=False, debug=False)
-        # Git pull
-        # self.initial_user_connector.update_misp()
-        # Set the default role (id 3 on the VM is normal user)
-        self.initial_user_connector.set_default_role(3)
-        # Restart workers
-        self.initial_user_connector.restart_workers()
-        if not fast_mode:
-            # Load submodules
-            self.initial_user_connector.update_object_templates()
-            self.initial_user_connector.update_galaxies()
-            self.initial_user_connector.update_noticelists()
-            self.initial_user_connector.update_warninglists()
-            self.initial_user_connector.update_taxonomies()
-
-        self.initial_user_connector.toggle_global_pythonify()
-
-        # Create organisation
-        organisation = MISPOrganisation()
-        organisation.name = params['orgname']
-        self.test_org = self.initial_user_connector.add_organisation(organisation)
-        print(self.test_org.name, self.test_org.uuid)
-        # Create Site admin in new org
-        user = MISPUser()
-        user.email = params['email_site_admin']
-        user.org_id = self.test_org.id
-        user.role_id = 1  # Site admin
-        self.test_site_admin = self.initial_user_connector.add_user(user)
-        self.site_admin_connector = ExpandedPyMISP(params['baseurl'], self.test_site_admin.authkey, ssl=False, debug=False)
-        self.site_admin_connector.toggle_global_pythonify()
-        # Create org admin
-        user = MISPUser()
-        user.email = params['email_admin']
-        user.org_id = self.test_org.id
-        user.role_id = 2  # Org admin
-        self.test_org_admin = self.site_admin_connector.add_user(user)
-        self.org_admin_connector = ExpandedPyMISP(params['baseurl'], self.test_org_admin.authkey, ssl=False, debug=False)
-        self.org_admin_connector.toggle_global_pythonify()
-        # Create user
-        user = MISPUser()
-        user.email = params['email_user']
-        user.org_id = self.test_org.id
-        self.test_usr = self.org_admin_connector.add_user(user)
-        self.user_connector = ExpandedPyMISP(params['baseurl'], self.test_usr.authkey, ssl=False, debug=False)
-        self.user_connector.toggle_global_pythonify()
-
-        # Setup external_baseurl
-        self.site_admin_connector.set_server_setting('MISP.external_baseurl', params['external_baseurl'], force=True)
-        # Setup baseurl
-        self.site_admin_connector.set_server_setting('MISP.baseurl', params['baseurl'], force=True)
-        # Setup host org
-        self.site_admin_connector.set_server_setting('MISP.host_org_id', self.test_org.id)
-
-        self.baseurl = params['baseurl']
-        self.sync = []
-        self.sync_servers = []
-
-    def __repr__(self):
-        return f'<{self.__class__.__name__}(external={self.baseurl})'
-
-    def create_sync_user(self, organisation):
-        sync_org = self.site_admin_connector.add_organisation(organisation)
-        short_org_name = sync_org.name.lower().replace(' ', '-')
-        user = MISPUser()
-        user.email = f"sync_user@{short_org_name}.local"
-        user.org_id = sync_org.id
-        user.role_id = 5  # Org admin
-        sync_user = self.site_admin_connector.add_user(user)
-        sync_user_connector = ExpandedPyMISP(self.site_admin_connector.root_url, sync_user.authkey, ssl=False, debug=False)
-        sync_server_config = sync_user_connector.get_sync_config(pythonify=True)
-        self.sync.append((sync_org, sync_user, sync_server_config))
-
-    def create_sync_server(self, name, server):
-        server = self.site_admin_connector.import_server(server)
-        server.self_signed = True
-        server.pull = True  # Not automatic, but allows to do a pull
-        server = self.site_admin_connector.update_server(server)
-        r = self.site_admin_connector.test_server(server)
-        if r['status'] != 1:
-            raise Exception(f'Sync test failed: {r}')
-        self.sync_servers.append(server)
-
-    def cleanup(self):
-        for org, user, _ in self.sync:
-            self.site_admin_connector.delete_user(user)  # Delete user from other org
-            self.site_admin_connector.delete_organisation(org)
-
-        # Delete sync servers
-        for server in self.site_admin_connector.servers():
-            self.site_admin_connector.delete_server(server)
-
-        # Delete users
-        self.org_admin_connector.delete_user(self.test_usr.id)
-        self.site_admin_connector.delete_user(self.test_org_admin.id)
-        self.initial_user_connector.delete_user(self.test_site_admin.id)
-        # Delete org
-        self.initial_user_connector.delete_organisation(self.test_org.id)
-
-        # Make sure the instance is back to a clean state
-        if self.initial_user_connector.events():
-            raise Exception(f'Events still on the instance {self.baseurl}')
-        if self.initial_user_connector.attributes():
-            raise Exception(f'Attributes still on the instance {self.baseurl}')
-        if self.initial_user_connector.attribute_proposals():
-            raise Exception(f'AttributeProposals still on the instance {self.baseurl}')
-        if self.initial_user_connector.sightings():
-            raise Exception(f'Sightings still on the instance {self.baseurl}')
-        if self.initial_user_connector.servers():
-            raise Exception(f'Servers still on the instance {self.baseurl}')
-        if self.initial_user_connector.sharing_groups():
-            raise Exception(f'SharingGroups still on the instance {self.baseurl}')
-        if len(self.initial_user_connector.organisations()) > 1:
-            raise Exception(f'Organisations still on the instance {self.baseurl}')
-        if len(self.initial_user_connector.users()) > 1:
-            raise Exception(f'Users still on the instance {self.baseurl}')
 
 
 class TestSync(unittest.TestCase):
@@ -143,38 +20,12 @@ class TestSync(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.maxDiff = None
-        cls.instances = []
-        for path, misp_instance in docker_setup.items():
-            with (path / 'current_ip_docker').open() as f:
-                sync_ip = f.read()
-            misp_instance['external_baseurl'] = f'http://{sync_ip}'
-            mi = MISPInstance(misp_instance)
-            cls.instances.append(mi)
-
-        # Create all sync users
-        test_orgs = [i.test_org for i in cls.instances]
-
-        for instance in cls.instances:
-            for test_org in test_orgs:
-                if instance.test_org.name == test_org.name:
-                    continue
-                instance.create_sync_user(test_org)
-
-        # Create all sync links
-        sync_identifiers = [i.sync for i in cls.instances]
-        for instance in cls.instances:
-            for sync_identifier in sync_identifiers:
-                for org, user, sync_server_config in sync_identifier:
-                    print(sync_server_config.to_json(indent=2))
-                    if org.name != instance.test_org.name:
-                        continue
-                    instance.create_sync_server(name=f'Sync with {sync_server_config.url}',
-                                                server=sync_server_config)
+        cls.misp_instances = MISPInstances()
 
         ready = False
         while not ready:
             ready = True
-            for i in cls.instances:
+            for i in cls.misp_instances.instances:
                 settings = i.site_admin_connector.server_settings()
                 if (not settings['workers']['default']['ok']
                         or not settings['workers']['prio']['ok']):
@@ -182,10 +33,10 @@ class TestSync(unittest.TestCase):
                     ready = False
             time.sleep(1)
 
-    @classmethod
-    def tearDownClass(cls):
-        for i in cls.instances:
-            i.cleanup()
+    # @classmethod
+    # def tearDownClass(cls):
+    #   for i in cls.instances:
+    #        i.cleanup()
 
     def test_simple_sync(self):
         '''Test simple event, push to one server'''
@@ -194,11 +45,11 @@ class TestSync(unittest.TestCase):
         event.distribution = Distribution.all_communities
         event.add_attribute('ip-src', '1.1.1.1')
         try:
-            source = self.instances[0]
-            dest = self.instances[1]
+            source = self.misp_instances.instances[0]
+            dest = self.misp_instances.instances[1]
             event = source.org_admin_connector.add_event(event)
             source.org_admin_connector.publish(event)
-            source.site_admin_connector.server_push(source.sync_servers[0], event)
+            source.site_admin_connector.server_push(source.synchronisations[dest.name], event)
             time.sleep(10)
             dest_event = dest.org_admin_connector.get_event(event.uuid)
             self.assertEqual(event.attributes[0].value, dest_event.attributes[0].value)
@@ -214,13 +65,13 @@ class TestSync(unittest.TestCase):
         event.distribution = Distribution.this_community_only
         event.add_attribute('ip-src', '1.1.1.1')
         try:
-            source = self.instances[0]
-            dest = self.instances[1]
+            source = self.misp_instances.instances[0]
+            dest = self.misp_instances.instances[1]
             event = source.org_admin_connector.add_event(event)
             source.org_admin_connector.publish(event)
-            dest.site_admin_connector.server_pull(dest.sync_servers[0])
+            dest.site_admin_connector.server_pull(dest.synchronisations[source.name])
             time.sleep(10)
-            dest_event = dest.org_admin_connector.get_event(event.uuid)
+            dest_event = dest.org_admin_connector.get_event(event)
             self.assertEqual(dest_event.distribution, 0)
         finally:
             source.org_admin_connector.delete_event(event)
@@ -233,15 +84,16 @@ class TestSync(unittest.TestCase):
         event.distribution = Distribution.all_communities
         event.add_attribute('ip-src', '1.1.1.1')
         try:
-            source = self.instances[0]
-            server = source.site_admin_connector.update_server({'push': True}, source.sync_servers[0].id)
+            source = self.misp_instances.instances[0]
+            middle = self.misp_instances.instances[1]
+            last = self.misp_instances.instances[2]
+            server = source.site_admin_connector.update_server({'push': True}, source.synchronisations[middle.name].id)
             self.assertTrue(server.push)
-            middle = self.instances[1]
-            middle.site_admin_connector.update_server({'push': True}, middle.sync_servers[1].id)  # Enable automatic push to 3rd instance
-            last = self.instances[2]
+
+            middle.site_admin_connector.update_server({'push': True}, middle.synchronisations[last.name].id)  # Enable automatic push to 3rd instance
             event = source.user_connector.add_event(event)
             source.org_admin_connector.publish(event)
-            source.site_admin_connector.server_push(source.sync_servers[0])
+            source.site_admin_connector.server_push(source.synchronisations[middle.name])
             time.sleep(30)
             middle_event = middle.user_connector.get_event(event.uuid)
             self.assertEqual(event.attributes[0].value, middle_event.attributes[0].value)
@@ -251,8 +103,8 @@ class TestSync(unittest.TestCase):
             source.org_admin_connector.delete_event(event)
             middle.site_admin_connector.delete_event(middle_event)
             last.site_admin_connector.delete_event(last_event)
-            source.site_admin_connector.update_server({'push': False}, source.sync_servers[0].id)
-            middle.site_admin_connector.update_server({'push': False}, middle.sync_servers[1].id)
+            source.site_admin_connector.update_server({'push': False}, source.synchronisations[middle.name].id)
+            middle.site_admin_connector.update_server({'push': False}, middle.synchronisations[last.name].id)
 
     def create_complex_event(self):
         event = MISPEvent()
@@ -288,11 +140,11 @@ class TestSync(unittest.TestCase):
         '''Test automatic push'''
         event = self.create_complex_event()
         try:
-            source = self.instances[0]
-            source.site_admin_connector.update_server({'push': True}, source.sync_servers[0].id)
-            middle = self.instances[1]
-            middle.site_admin_connector.update_server({'push': True}, middle.sync_servers[1].id)  # Enable automatic push to 3rd instance
-            last = self.instances[2]
+            source = self.misp_instances.instances[0]
+            middle = self.misp_instances.instances[1]
+            last = self.misp_instances.instances[2]
+            source.site_admin_connector.update_server({'push': True}, source.synchronisations[middle.name].id)
+            middle.site_admin_connector.update_server({'push': True}, middle.synchronisations[last.name].id)  # Enable automatic push to 3rd instance
 
             event = source.org_admin_connector.add_event(event)
             source.org_admin_connector.publish(event)
@@ -328,23 +180,23 @@ class TestSync(unittest.TestCase):
             source.org_admin_connector.delete_event(event)
             middle.site_admin_connector.delete_event(event_middle)
             last.site_admin_connector.delete_event(event_last)
-            source.site_admin_connector.update_server({'push': False}, source.sync_servers[0].id)
-            middle.site_admin_connector.update_server({'push': False}, middle.sync_servers[1].id)
+            source.site_admin_connector.update_server({'push': False}, source.synchronisations[middle.name].id)
+            middle.site_admin_connector.update_server({'push': False}, middle.synchronisations[last.name].id)
 
     def test_complex_event_pull(self):
         '''Test pull'''
         event = self.create_complex_event()
         try:
-            source = self.instances[0]
-            middle = self.instances[1]
-            last = self.instances[2]
+            source = self.misp_instances.instances[0]
+            middle = self.misp_instances.instances[1]
+            last = self.misp_instances.instances[2]
 
             event = source.org_admin_connector.add_event(event)
             source.org_admin_connector.publish(event)
-            middle.site_admin_connector.server_pull(middle.sync_servers[0])
-            time.sleep(6)
-            last.site_admin_connector.server_pull(last.sync_servers[1])
-            time.sleep(6)
+            middle.site_admin_connector.server_pull(middle.synchronisations[source.name])
+            time.sleep(15)
+            last.site_admin_connector.server_pull(last.synchronisations[middle.name])
+            time.sleep(15)
             event_middle = middle.user_connector.get_event(event.uuid)
             event_last = last.user_connector.get_event(event.uuid)
             self.assertEqual(len(event_middle.attributes), 3)  # attribute 2, 3 and 4
@@ -364,17 +216,17 @@ class TestSync(unittest.TestCase):
         '''Test Sharing Group'''
         event = self.create_complex_event()
         try:
-            source = self.instances[0]
-            source.site_admin_connector.update_server({'push': True}, source.sync_servers[0].id)
-            middle = self.instances[1]
-            middle.site_admin_connector.update_server({'push': True}, middle.sync_servers[1].id)  # Enable automatic push to 3rd instance
-            last = self.instances[2]
+            source = self.misp_instances.instances[0]
+            middle = self.misp_instances.instances[1]
+            last = self.misp_instances.instances[2]
+            source.site_admin_connector.update_server({'push': True}, source.synchronisations[middle.name].id)
+            middle.site_admin_connector.update_server({'push': True}, middle.synchronisations[last.name].id)  # Enable automatic push to 3rd instance
 
             sg = MISPSharingGroup()
             sg.name = 'Testcases SG'
             sg.releasability = 'Testing'
             sharing_group = source.site_admin_connector.add_sharing_group(sg)
-            source.site_admin_connector.add_org_to_sharing_group(sharing_group, middle.test_org.uuid)
+            source.site_admin_connector.add_org_to_sharing_group(sharing_group, middle.host_org.uuid)
             source.site_admin_connector.add_server_to_sharing_group(sharing_group, 0)  # Add local server
             # NOTE: the data on that sharing group *won't be synced anywhere*
 
@@ -413,5 +265,5 @@ class TestSync(unittest.TestCase):
             last.site_admin_connector.delete_event(event)
             source.site_admin_connector.delete_sharing_group(sharing_group.id)
             middle.site_admin_connector.delete_sharing_group(sharing_group.id)
-            source.site_admin_connector.update_server({'push': False}, source.sync_servers[0].id)
-            middle.site_admin_connector.update_server({'push': False}, middle.sync_servers[1].id)
+            source.site_admin_connector.update_server({'push': False}, source.synchronisations[middle.name].id)
+            middle.site_admin_connector.update_server({'push': False}, middle.synchronisations[last.name].id)

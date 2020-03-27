@@ -2,15 +2,15 @@
 # -*- coding: utf-8 -*-
 
 import os
-from config import docker_setup
 from subprocess import Popen
 import shlex
+from pathlib import Path
 
-print("Docker requires sudo. unlock sudo in the teminal you are running that script or it's gonna fail: sudo -d / exit.")
+misps_root = Path('misps')
 
-for root_dir in docker_setup:
+for misp_dir in misps_root.glob('misp*'):
     cur_dir = os.getcwd()
-    os.chdir(root_dir)
+    os.chdir(misp_dir)
     command = shlex.split('sudo docker-compose stop')
     p = Popen(command)
     p.wait()

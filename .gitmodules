@@ -1,12 +1,6 @@
-[submodule "misp01"]
-	path = misp01
-	url = https://github.com/coolacid/docker-misp.git
-[submodule "misp02"]
-	path = misp02
-	url = https://github.com/coolacid/docker-misp.git
-[submodule "misp03"]
-	path = misp03
-	url = https://github.com/coolacid/docker-misp.git
 [submodule "misp-refresh"]
 	path = misp-refresh
 	url = https://github.com/SteveClement/misp-refresh.git
+[submodule "nginx-proxy"]
+	path = nginx-proxy
+	url = https://github.com/nginx-proxy/nginx-proxy.git

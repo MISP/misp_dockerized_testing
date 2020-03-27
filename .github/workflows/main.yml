@@ -46,5 +46,14 @@ jobs:
        cat hosts_content | sudo tee -a /etc/hosts
        cat /etc/hosts
 
+    - name: Initialize MISPs, take 2
+      run:|
+        ps aux
+        sleep 100
+        ps aux
+        sleep 100
+        ps aux
+        poetry run ./init_misps.py
+
     - name: Run tests
       run: poetry run nosetests-3.4 testlive_sync.py

@@ -55,9 +55,7 @@ jobs:
 
     - name: Restart nginx, just in case
       run: |
-        poetry run ./stop_nginx.py
         poetry run ./start_nginx.py
-        sleep 60
 
     - name: Test if the domains are reachable
       run: |

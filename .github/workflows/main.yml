@@ -58,9 +58,6 @@ jobs:
         poetry run ./stop_nginx.py
         poetry run ./start_nginx.py
         sleep 60
-        pushd nginx-proxy
-        sudo docker-compose exec nginx-proxy /bin/cat /etc/nginx/conf.d/default.conf
-        popd
 
     - name: Test if the domains are reachable
       run: |

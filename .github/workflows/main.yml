@@ -69,6 +69,10 @@ jobs:
       run: |
         sudo docker network ls
         sudo docker network inspect custom_misp_testing_environment
+        sudo docker container inspect misp-1_misp_1
+        sudo docker container inspect misp-2_misp_1
+        sudo docker container inspect misp-3_misp_1
+        sudo docker container inspect misp-central_misp_1
 
     - name: Test if the domains are reachable
       run: |

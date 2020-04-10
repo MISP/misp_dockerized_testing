@@ -60,6 +60,11 @@ jobs:
       run: |
         poetry run ./start_nginx.py
 
+    - name: Check networks status
+      run: |
+        sudo docker network ls
+        sudo docker network inspect custom_misp_testing_environment
+
     - name: Test if the domains are reachable
       run: |
         ifconfig -a

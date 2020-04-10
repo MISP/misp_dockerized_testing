@@ -28,6 +28,9 @@ jobs:
       with:
         python-version: '3.7'
 
+    - name: Prune docker networks
+      run: sudo docker network prune -f
+
     - name: Install poetry
       run: pip3 install poetry
 

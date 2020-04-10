@@ -77,6 +77,7 @@ class MISPDocker():
         if not docker_content['services']['misp'].get('networks'):
             docker_content['services']['misp']['environment'].append('NOREDIR=true')
             docker_content['services']['misp']['environment'].append(f'VIRTUAL_HOST={self.config["hostname"]}')
+            docker_content['services']['misp']['environment'].append('NETWORK_ACCESS=internal')
             docker_content['services']['misp']['environment'].append(f'CERT_NAME={self.config["certname"]}')
             docker_content['services']['misp']['networks'] = ['default', 'misp-test-sync']
 

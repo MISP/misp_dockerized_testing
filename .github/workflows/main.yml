@@ -31,6 +31,11 @@ jobs:
     - name: Prune docker networks
       run: sudo docker network prune -f
 
+    - name: Check docker
+      run: |
+        docker-compose version
+        docker --version
+
     - name: Install poetry
       run: pip3 install poetry
 
